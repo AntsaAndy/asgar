@@ -1,4 +1,4 @@
-// content.js - Capture Brute Totale et Bouton Flottant
+// content.js
 
 function createFloatingButton() {
     if (document.getElementById('active-ai-memory-fab')) return;
@@ -38,14 +38,10 @@ function createFloatingButton() {
     document.body.appendChild(btn);
 }
 
-// Extraction de l'intégralité absolue du texte visible
 function extractPageData() {
     const title = document.title;
     const url = window.location.href;
     const domain = window.location.hostname;
-    
-    // On capture TOUT le texte visible (innerText respecte la mise en page et les menus)
-    // On nettoie juste les espaces multiples pour garder une structure lisible
     const fullBodyText = document.body.innerText.trim();
 
     return {
@@ -54,19 +50,17 @@ function extractPageData() {
         domain: domain,
         url: url,
         excerpt: fullBodyText.substring(0, 200) + "...", 
-        fullText: fullBodyText, // L'intégralité du document (menus, articles, etc.)
+        fullText: fullBodyText,
         timestamp: new Date().toISOString()
     };
 }
 
-// Initialisation au chargement
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createFloatingButton);
 } else {
     createFloatingButton();
 }
 
-// Aspiration automatique dès que la page est prête
 window.addEventListener('load', () => {
     const pageData = extractPageData();
     chrome.runtime.sendMessage({ 

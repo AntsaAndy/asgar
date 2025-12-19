@@ -1,5 +1,4 @@
-// utils/storage.js - Version simplifiée
-
+// utils/storage.js
 class StorageManager {
     constructor() {
         this.storageKey = 'memories';
@@ -35,9 +34,9 @@ class StorageManager {
 
         memories.unshift(memory);
         
-        // Limiter à 100 documents maximum
-        if (memories.length > 100) {
-            memories.length = 100;
+        // Limiter à 300 documents maximum
+        if (memories.length > 300) {
+            memories.length = 300;
         }
 
         await this.saveMemories(memories);
@@ -84,5 +83,4 @@ class StorageManager {
     }
 }
 
-// Créer l'instance globale
 const storageManager = new StorageManager();

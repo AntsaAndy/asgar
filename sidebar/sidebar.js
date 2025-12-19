@@ -1,5 +1,4 @@
-// sidebar.js - Version avec mini popup pour recherche web
-
+// sidebar.js
 // Import global de storageManager depuis storage.js
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -11,15 +10,177 @@ document.addEventListener('DOMContentLoaded', async () => {
     let aiProcessor = null;
     let isProcessing = false;
     let pendingSearchQuery = null;
-    let searchPopup = null; // Référence à la popup
+    let searchPopup = null;
 
-    // Fonction pour charger l'IA
+    // Fonction pour charger l'IA améliorée
     async function loadAI() {
         try {
-            // Créer une instance simplifiée de l'IA directement
-            class SimpleAI {
+            // Créer une instance améliorée de l'IA
+            class EnhancedAI {
                 constructor() {
-                    this.stopWords = new Set(['le', 'la', 'de', 'et', 'des', 'un', 'une']);
+                    this.stopWords = new Set(['le', 'la', 'de', 'et', 'des', 'un', 'une', 'est', 'que', 'dans', 'pour', 'avec']);
+                }
+
+                // Analyser une question pour en extraire les concepts clés
+                extractKeyConcepts(query) {
+                    const lowerQuery = query.toLowerCase();
+                    const concepts = [];
+                    
+                    // Détecter les types de questions
+                    const questionTypes = {
+                        'qu\'est-ce que': 'définition',
+                        'c\'est quoi': 'définition',
+                        'définition': 'définition',
+                        'comment': 'procédure',
+                        'pourquoi': 'cause',
+                        'quand': 'temps',
+                        'où': 'lieu',
+                        'qui': 'personne',
+                        'quels sont': 'liste',
+                        'avantages': 'avantages',
+                        'inconvénients': 'inconvénients',
+                        'fonctionnalités': 'fonctionnalités',
+                        'étapes': 'étapes',
+                        'types': 'types',
+                        'exemples': 'exemples'
+                    };
+                    
+                    let questionType = 'général';
+                    for (const [keyword, type] of Object.entries(questionTypes)) {
+                        if (lowerQuery.includes(keyword)) {
+                            questionType = type;
+                            break;
+                        }
+                    }
+                    
+                    // Extraire les mots-clés principaux (exclure les mots vides)
+                    const words = lowerQuery.split(/[\s,.?!]+/);
+                    const keywords = words.filter(word => 
+                        word.length > 3 && 
+                        !this.stopWords.has(word) &&
+                        !Object.keys(questionTypes).includes(word)
+                    );
+                    
+                    return {
+                        type: questionType,
+                        keywords: keywords,
+                        originalQuery: query
+                    };
+                }
+
+                // Trouver les passages les plus pertinents dans un texte
+                findRelevantPassages(text, concepts) {
+                    if (!text || text.length < 100) return [text];
+                    
+                    const passages = [];
+                    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+                    
+                    // Pour chaque concept, trouver les phrases les plus pertinentes
+                    concepts.keywords.forEach(keyword => {
+                        sentences.forEach(sentence => {
+                            const lowerSentence = sentence.toLowerCase();
+                            if (lowerSentence.includes(keyword)) {
+                                let score = 1;
+                                
+                                // Bonus si la phrase est au début (souvent plus importante)
+                                const sentenceIndex = sentences.indexOf(sentence);
+                                if (sentenceIndex < 3) score += 0.5;
+                                
+                                // Bonus pour les phrases plus longues (plus d'information)
+                                if (sentence.length > 100) score += 0.3;
+                                
+                                passages.push({
+                                    text: sentence.trim(),
+                                    score: score,
+                                    keyword: keyword
+                                });
+                            }
+                        });
+                    });
+                    
+                    // Trier par score et dédupliquer
+                    passages.sort((a, b) => b.score - a.score);
+                    
+                    const uniquePassages = [];
+                    const seenTexts = new Set();
+                    
+                    passages.forEach(passage => {
+                        const shortText = passage.text.substring(0, 100);
+                        if (!seenTexts.has(shortText)) {
+                            seenTexts.add(shortText);
+                            uniquePassages.push(passage);
+                        }
+                    });
+                    
+                    return uniquePassages.slice(0, 3).map(p => p.text);
+                }
+
+                generateTargetedResponse(questionType, passages, memory) {
+                    let response = '';
+                    
+                    switch(questionType) {
+                        case 'définition':
+                            response = `📚 **Définition trouvée** :\n\n`;
+                            if (passages.length > 0) {
+                                response += `${passages[0]}\n\n`;
+                            }
+                            if (memory.title) {
+                                response += `_Source: ${memory.title}_\n`;
+                            }
+                            break;
+                            
+                        case 'procédure':
+                        case 'étapes':
+                            response = `🔧 **Procédure / Étapes** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `${index + 1}. ${passage}\n\n`;
+                            });
+                            break;
+                            
+                        case 'avantages':
+                            response = `✅ **Avantages identifiés** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `• ${passage}\n\n`;
+                            });
+                            break;
+                            
+                        case 'inconvénients':
+                            response = `⚠️ **Points à considérer** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `• ${passage}\n\n`;
+                            });
+                            break;
+                            
+                        case 'fonctionnalités':
+                            response = `⚙️ **Fonctionnalités principales** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `• ${passage}\n\n`;
+                            });
+                            break;
+                            
+                        case 'types':
+                            response = `📋 **Types / Catégories** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `• ${passage}\n\n`;
+                            });
+                            break;
+                            
+                        case 'exemples':
+                            response = `📝 **Exemples trouvés** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `• ${passage}\n\n`;
+                            });
+                            break;
+                            
+                        default:
+                            response = `📖 **Informations trouvées** :\n\n`;
+                            passages.forEach((passage, index) => {
+                                response += `${passage}\n\n`;
+                            });
+                            break;
+                    }
+                    
+                    return response;
                 }
 
                 async processQuestion(query, storageManager) {
@@ -33,89 +194,67 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                     }
                     
-                    const lowerQuery = query.toLowerCase();
-                    const results = [];
+                    // Analyser la question
+                    const concepts = this.extractKeyConcepts(query);
                     
-                    // Recherche simple dans tous les documents
-                    memories.forEach(memory => {
+                    // Rechercher dans les documents
+                    let bestMemory = null;
+                    let bestPassages = [];
+                    let bestScore = 0;
+                    
+                    for (const memory of memories) {
+                        const text = `${memory.title || ''} ${memory.excerpt || ''} ${memory.fullText || ''}`;
+                        const lowerText = text.toLowerCase();
+                        
                         let score = 0;
                         
-                        // Vérifier dans le titre
-                        if (memory.title && memory.title.toLowerCase().includes(lowerQuery)) {
-                            score += 3;
-                        }
-                        
-                        // Vérifier dans l'extrait
-                        if (memory.excerpt && memory.excerpt.toLowerCase().includes(lowerQuery)) {
-                            score += 2;
-                        }
-                        
-                        // Vérifier dans le texte complet
-                        if (memory.fullText && memory.fullText.toLowerCase().includes(lowerQuery)) {
-                            score += 1;
-                        }
-                        
-                        // Vérifier les mots individuels
-                        const words = lowerQuery.split(' ').filter(w => w.length > 3);
-                        words.forEach(word => {
-                            const text = `${memory.title} ${memory.excerpt}`.toLowerCase();
-                            if (text.includes(word)) {
-                                score += 0.5;
+                        // Vérifier les mots-clés
+                        concepts.keywords.forEach(keyword => {
+                            if (lowerText.includes(keyword)) {
+                                score += 2;
                             }
                         });
                         
-                        if (score > 0) {
-                            results.push({ memory, score });
+                        // Bonus pour le titre
+                        if (memory.title && concepts.keywords.some(kw => 
+                            memory.title.toLowerCase().includes(kw))) {
+                            score += 3;
                         }
-                    });
+                        
+                        // Si on a un score intéressant, analyser le contenu
+                        if (score > 0) {
+                            const passages = this.findRelevantPassages(text, concepts);
+                            
+                            if (passages.length > 0 && score > bestScore) {
+                                bestScore = score;
+                                bestMemory = memory;
+                                bestPassages = passages;
+                            }
+                        }
+                    }
                     
-                    if (results.length === 0) {
+                    // Vérifier si on a trouvé quelque chose de pertinent
+                    if (bestMemory && bestPassages.length > 0 && bestScore >= 1.5) {
+                        const answer = this.generateTargetedResponse(concepts.type, bestPassages, bestMemory);
+                        
                         return {
-                            answer: `🤔 Je n'ai pas d'information sur "${query}" dans mes documents.`,
+                            answer: answer,
+                            knowsAnswer: true,
+                            searchQuery: null
+                        };
+                    } else {
+                        return {
+                            answer: `🤔 Je n'ai pas d'information précise sur "${query}" dans mes documents.\n\nJe peux vous dire que j'ai ${memories.length} document(s) stockés.`,
                             knowsAnswer: false,
                             searchQuery: query
                         };
                     }
-                    
-                    // Trier par score
-                    results.sort((a, b) => b.score - a.score);
-                    const top = results[0].memory;
-                    
-                    // Vérifier si la réponse est pertinente (score minimum)
-                    const knowsAnswer = results[0].score >= 1.5;
-                    
-                    // Extraire un extrait pertinent
-                    let excerpt = top.excerpt || '';
-                    if (!excerpt && top.fullText) {
-                        excerpt = top.fullText.substring(0, 200) + '...';
-                    }
-                    
-                    // Construire la réponse
-                    let answer = `📖 **${top.title || 'Document'}**\n\n`;
-                    
-                    if (excerpt) {
-                        answer += `${excerpt}\n\n`;
-                    }
-                    
-                    if (top.domain && top.domain !== "Import local") {
-                        answer += `_Source: ${top.domain}_\n\n`;
-                    }
-                    
-                    if (results.length > 1) {
-                        answer += `📚 ${results.length - 1} autre(s) document(s) connexe(s).`;
-                    }
-                    
-                    return {
-                        answer: answer,
-                        knowsAnswer: knowsAnswer,
-                        searchQuery: !knowsAnswer ? query : null
-                    };
                 }
             }
             
-            aiProcessor = new SimpleAI();
-            addChatMessage('🤖 Assistant IA prêt ! Posez-moi une question sur vos documents.', 'bot');
-            console.log('IA initialisée avec succès');
+            aiProcessor = new EnhancedAI();
+            addChatMessage('🤖 Assistant IA prêt ! Posez-moi des questions précises sur vos documents.', 'bot');
+            console.log('IA améliorée initialisée avec succès');
             
         } catch (error) {
             console.error('Erreur initialisation IA:', error);
@@ -128,7 +267,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
         chrome.tabs.create({ url: searchUrl });
         
-        // Ajouter un message au chat
         setTimeout(() => {
             addChatMessage(`🌐 Recherche Google lancée pour : "${query}"`, 'bot');
         }, 300);
@@ -136,14 +274,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fonction pour créer et afficher la mini popup
     function showSearchPopup(query) {
-        // Supprimer une popup existante
         if (searchPopup) {
             document.body.removeChild(searchPopup);
         }
         
         pendingSearchQuery = query;
         
-        // Créer la popup
         searchPopup = document.createElement('div');
         searchPopup.className = 'search-popup';
         searchPopup.innerHTML = `
@@ -175,13 +311,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
         
-        // Ajouter la popup au body
         document.body.appendChild(searchPopup);
-        
-        // Positionner la popup
         positionPopup();
         
-        // Ajouter les événements
         searchPopup.querySelector('.popup-close').addEventListener('click', closeSearchPopup);
         searchPopup.querySelector('.popup-btn-yes').addEventListener('click', () => {
             openWebSearch(query);
@@ -189,7 +321,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         searchPopup.querySelector('.popup-btn-no').addEventListener('click', closeSearchPopup);
         
-        // Fermer la popup en cliquant à l'extérieur
         setTimeout(() => {
             searchPopup.addEventListener('click', (e) => {
                 if (e.target === searchPopup) {
@@ -198,24 +329,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }, 100);
         
-        // Fermer avec la touche Échap
         document.addEventListener('keydown', handlePopupKeydown);
     }
 
-    // Fonction pour positionner la popup
     function positionPopup() {
         if (!searchPopup) return;
         
-        const popupWidth = 320;
-        const popupHeight = 200;
-        
-        // Position au centre de l'écran
         searchPopup.style.left = '50%';
         searchPopup.style.top = '50%';
         searchPopup.style.transform = 'translate(-50%, -50%)';
     }
 
-    // Fonction pour fermer la popup
     function closeSearchPopup() {
         if (searchPopup) {
             document.body.removeChild(searchPopup);
@@ -225,14 +349,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Gérer la touche Échap
     function handlePopupKeydown(e) {
         if (e.key === 'Escape') {
             closeSearchPopup();
         }
     }
 
-    // Fonction pour gérer les commandes spéciales
     function handleSpecialCommands(query) {
         const lowerQuery = query.toLowerCase().trim();
         
@@ -254,8 +376,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         return false;
     }
-
-    // Initialiser l'IA immédiatement
     loadAI();
 
     if (historyPanel) historyPanel.classList.add('hidden');
@@ -308,7 +428,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     const content = event.target.result;
                     
-                    // Essayer de parser comme JSON, sinon traiter comme texte brut
                     let memoryData;
                     try {
                         memoryData = JSON.parse(content);
@@ -320,7 +439,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         };
                     }
                     
-                    // S'assurer que c'est un tableau
                     const memoriesToAdd = Array.isArray(memoryData) ? memoryData : [memoryData];
                     let importedCount = 0;
                     
@@ -359,7 +477,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const query = chatInput.value.trim();
         if (!query) return;
         
-        // Vérifier d'abord les commandes spéciales
         if (handleSpecialCommands(query)) {
             chatInput.value = '';
             return;
@@ -376,7 +493,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         isProcessing = true;
 
-        // Afficher un indicateur de traitement
         const thinkingMsg = document.createElement('div');
         thinkingMsg.className = 'msg bot thinking';
         thinkingMsg.innerHTML = '🧠 Je réfléchis...';
@@ -385,7 +501,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         scrollToBottom();
 
         try {
-            // Attendre un peu pour l'effet visuel
             await new Promise(resolve => setTimeout(resolve, 500));
             
             let response;
@@ -393,7 +508,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             let searchQuery = '';
             
             if (!aiProcessor) {
-                // Fallback sans IA
                 const memories = await storageManager.getAllMemories();
                 if (memories.length === 0) {
                     response = "📭 Aucun document disponible dans ma mémoire.";
@@ -410,21 +524,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             } else {
-                // Utiliser l'IA
                 const aiResponse = await aiProcessor.processQuestion(query, storageManager);
                 response = aiResponse.answer;
                 shouldOfferSearch = !aiResponse.knowsAnswer;
                 searchQuery = aiResponse.searchQuery;
             }
             
-            // Supprimer l'indicateur de traitement
             const thinkingElement = document.getElementById('thinking-message');
             if (thinkingElement) thinkingElement.remove();
             
-            // Afficher la réponse
             addChatMessage(response, 'bot');
             
-            // Si l'IA ne sait pas répondre, afficher la mini popup
             if (shouldOfferSearch && searchQuery) {
                 setTimeout(() => {
                     showSearchPopup(searchQuery);
@@ -434,7 +544,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Erreur traitement:', error);
             
-            // Supprimer l'indicateur de traitement
             const thinkingElement = document.getElementById('thinking-message');
             if (thinkingElement) thinkingElement.remove();
             
@@ -468,11 +577,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Rendu initial
     window.renderMemories();
 });
 
-// --- RENDU : AFFICHAGE DES CARTES ---
 window.renderMemories = async function() {
     const list = document.getElementById('memories-list');
     if (!list) return;
@@ -525,7 +632,7 @@ window.renderMemories = async function() {
             e.stopPropagation();
             window.downloadSingleMemory(m.id);
         };
-        
+
         card.querySelector('.btn-delete').onclick = (e) => {
             e.stopPropagation();
             window.deleteCard(m.id);
@@ -533,7 +640,7 @@ window.renderMemories = async function() {
 
         list.appendChild(card);
     });
-    
+
     if (memories.length > 20) {
         const moreText = document.createElement('div');
         moreText.style.textAlign = 'center';
@@ -594,7 +701,12 @@ function addChatMessage(text, role) {
         .replace(/🔄/g, '🔄')
         .replace(/🤔/g, '🤔')
         .replace(/🌐/g, '🌐')
-        .replace(/📖/g, '📖');
+        .replace(/📖/g, '📖')
+        .replace(/📝/g, '📝')
+        .replace(/📋/g, '📋')
+        .replace(/⚙️/g, '⚙️')
+        .replace(/🔧/g, '🔧')
+        .replace(/📚/g, '📚');
     
     div.innerHTML = formattedText;
     container.appendChild(div);

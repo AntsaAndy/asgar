@@ -12,7 +12,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.asgar_team7.rule=Host(`asgar_team7.insi.local`)"
       - "traefik.http.routers.asgar_team7.entrypoints=web"
-      - "traefik.http.routers.asgar_team7.tls=false"  # ou true si vous avez HTTPS
+      - "traefik.http.routers.asgar_team7.tls=false" 
       - "traefik.http.services.asgar_team7.loadbalancer.server.port=80"
       - "traefik.http.routers.asgar_team7.middlewares=asgar_team7-headers"
       - "traefik.http.middlewares.asgar_team7-headers.headers.customrequestheaders.X-Forwarded-Proto=https"

@@ -1,9 +1,7 @@
-// Configuration globale du SidePanel
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
 
-// Forcer l'ouverture au clic sur l'icône de l'extension
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ windowId: tab.windowId });
 });

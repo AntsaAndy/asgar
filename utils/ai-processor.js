@@ -1,254 +1,155 @@
-// utils/ai-processor.js - Version fonctionnelle
+// utils/ai-processor.js 
 
-// Définition de la classe AIProcessor
-class AIProcessor {
+class EnhancedAIProcessor {
     constructor() {
         this.stopWords = new Set([
-            'le', 'la', 'les', 'de', 'des', 'du', 'un', 'une', 'et', 'ou', 'mais', 'où', 'donc', 'or', 'ni', 'car',
-            'à', 'au', 'aux', 'avec', 'dans', 'par', 'pour', 'sur', 'sous', 'vers', 'chez', 'sans', 'entre'
+            'le', 'la', 'les', 'de', 'des', 'du', 'un', 'une', 'et', 'ou', 'mais', 
+            'dans', 'pour', 'avec', 'est', 'sont', 'était', 'étaient'
         ]);
     }
 
-    preprocessText(text) {
-        if (!text) return '';
-        
-        return text.toLowerCase()
-            .replace(/[^\w\sàâäéèêëîïôöùûüç]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .split(' ')
-            .filter(word => word.length > 2 && !this.stopWords.has(word))
-            .join(' ');
-    }
-
-    tokenize(text) {
-        return this.preprocessText(text).split(' ').filter(word => word.length > 0);
-    }
-
-    calculateTF(text) {
-        const tokens = this.tokenize(text);
-        const tf = {};
-        const totalWords = tokens.length;
-        
-        if (totalWords === 0) return tf;
-        
-        tokens.forEach(token => {
-            tf[token] = (tf[token] || 0) + 1;
-        });
-        
-        // Normaliser
-        Object.keys(tf).forEach(token => {
-            tf[token] = tf[token] / totalWords;
-        });
-        
-        return tf;
-    }
-
-    calculateIDF(memories) {
-        const idf = {};
-        const totalDocs = memories.length;
-        
-        if (totalDocs === 0) return idf;
-        
-        memories.forEach(memory => {
-            const text = this.getMemoryText(memory);
-            const uniqueTokens = new Set(this.tokenize(text));
-            
-            uniqueTokens.forEach(token => {
-                idf[token] = (idf[token] || 0) + 1;
-            });
-        });
-        
-        // Calcul IDF
-        Object.keys(idf).forEach(token => {
-            idf[token] = Math.log((totalDocs + 1) / (idf[token] + 1)) + 1;
-        });
-        
-        return idf;
-    }
-
-    getMemoryText(memory) {
-        return `${memory.title || ''} ${memory.excerpt || ''} ${memory.fullText || ''}`.toLowerCase();
-    }
-
-    calculateTFIDFScore(memory, queryTokens, idf) {
-        const text = this.getMemoryText(memory);
-        const memoryTokens = this.tokenize(text);
-        
-        if (queryTokens.length === 0 || memoryTokens.length === 0) {
-            return 0;
-        }
-        
-        let score = 0;
-        
-        // Créer vecteur TF pour le memory
-        const memoryTF = this.calculateTF(text);
-        
-        // Pour chaque token de la requête
-        queryTokens.forEach(token => {
-            const tokenIDF = idf[token] || 1;
-            
-            // Produit scalaire simplifié
-            if (memoryTF[token]) {
-                score += memoryTF[token] * tokenIDF;
-            }
-        });
-        
-        return score;
-    }
-
-    async semanticSearch(query, memories, limit = 3) {
-        if (!query || !memories || memories.length === 0) {
-            return [];
-        }
-        
-        const processedQuery = this.preprocessText(query);
-        const queryTokens = this.tokenize(processedQuery);
-        
-        if (queryTokens.length === 0) {
-            return this.simpleSearch(query, memories, limit);
-        }
-        
-        try {
-            const idf = this.calculateIDF(memories);
-            
-            const scoredMemories = memories.map(memory => {
-                let score = this.calculateTFIDFScore(memory, queryTokens, idf);
-                
-                // Bonus pour les correspondances exactes
-                const titleLower = (memory.title || '').toLowerCase();
-                const queryLower = query.toLowerCase();
-                
-                if (titleLower.includes(queryLower)) {
-                    score += 0.5;
-                }
-                
-                return {
-                    memory: memory,
-                    score: score
-                };
-            });
-            
-            return scoredMemories
-                .sort((a, b) => b.score - a.score)
-                .slice(0, limit)
-                .filter(item => item.score > 0.01);
-            
-        } catch (error) {
-            console.error('Erreur recherche sémantique:', error);
-            return this.simpleSearch(query, memories, limit);
-        }
-    }
-
-    // Recherche simple par mots-clés (fallback)
-    simpleSearch(query, memories, limit = 5) {
+    analyzeQuestionType(query) {
         const lowerQuery = query.toLowerCase();
-        const queryWords = lowerQuery.split(' ').filter(w => w.length > 2);
         
-        const scored = memories.map(memory => {
-            let score = 0;
-            const text = this.getMemoryText(memory);
+        const patterns = {
+            definition: /(qu['eé]st-ce que|c['eé]est quoi|d[eé]finition|signifie|d[eé]finir)/,
+            how: /(comment|faire|r[eé]aliser|mettre en œuvre)/,
+            why: /(pourquoi|raison|cause|motif)/,
+            what: /(quels? sont|quelles? sont|qu['eé]est|que)/,
+            when: /(quand|date|p[eé]riode)/,
+            where: /(o[uù]|lieu|endroit)/,
+            who: /(qui|personne|individu)/,
+            advantages: /(avantages|b[eé]n[eé]fices|points forts)/,
+            disadvantages: /(inconv[eé]nients|d[eé]savantages|points faibles)/,
+            examples: /(exemples?|cas|illustrations?)/,
+            steps: /([eé]tapes?|proc[eé]dure|marche [aà] suivre)/,
+            types: /(types?|cat[eé]gories|sortes?)/
+        };
+        
+        for (const [type, pattern] of Object.entries(patterns)) {
+            if (pattern.test(lowerQuery)) {
+                return type;
+            }
+        }
+        
+        return 'general';
+    }
+
+    extractKeywords(query) {
+        const words = query.toLowerCase()
+            .replace(/[^\w\sàâäéèêëîïôöùûüç]/g, ' ')
+            .split(/\s+/)
+            .filter(word => 
+                word.length > 3 && 
+                !this.stopWords.has(word) &&
+                !['quoi', 'comment', 'pourquoi', 'quand', 'où', 'qui'].includes(word)
+            );
+        
+        return [...new Set(words)]; 
+    }
+
+    // Trouver les passages les plus pertinents
+    findRelevantTextSnippets(fullText, keywords) {
+        if (!fullText || fullText.length < 100) return [];
+        
+        const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 20);
+        const relevantSnippets = [];
+        
+        sentences.forEach(sentence => {
+            const lowerSentence = sentence.toLowerCase();
+            let relevance = 0;
+            let matchedKeywords = [];
             
-            queryWords.forEach(word => {
-                if (text.includes(word)) {
-                    score += 1;
+            keywords.forEach(keyword => {
+                if (lowerSentence.includes(keyword)) {
+                    relevance += 2;
+                    matchedKeywords.push(keyword);
                 }
             });
             
-            if (memory.title && memory.title.toLowerCase().includes(lowerQuery)) {
-                score += 3;
+            // Bonus pour les phrases contenant plusieurs mots-clés
+            if (matchedKeywords.length > 1) {
+                relevance += matchedKeywords.length;
             }
             
-            return {
-                memory: memory,
-                score: score
-            };
+            if (sentence.length > 100) {
+                relevance += 1;
+            }
+            
+            if (relevance > 0) {
+                relevantSnippets.push({
+                    text: sentence.trim(),
+                    relevance: relevance,
+                    keywords: matchedKeywords
+                });
+            }
         });
         
-        return scored
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit)
-            .filter(item => item.score > 0);
+        // Trier par pertinence et limiter à 3 passages
+        return relevantSnippets
+            .sort((a, b) => b.relevance - a.relevance)
+            .slice(0, 3)
+            .map(s => s.text);
     }
 
-    generateResponse(query, searchResults) {
-        if (searchResults.length === 0) {
-            return `🤔 Je n'ai pas d'information sur "${query}" dans mes documents.`;
+    formatResponse(questionType, snippets, sourceTitle) {
+        let response = '';
+        let icon = '📖';
+        
+        switch(questionType) {
+            case 'definition':
+                icon = '📚';
+                response = `${icon} **Définition trouvée** :\n\n`;
+                break;
+            case 'how':
+                icon = '🔧';
+                response = `${icon} **Procédure** :\n\n`;
+                break;
+            case 'why':
+                icon = '🤔';
+                response = `${icon} **Raisons identifiées** :\n\n`;
+                break;
+            case 'advantages':
+                icon = '✅';
+                response = `${icon} **Avantages** :\n\n`;
+                break;
+            case 'disadvantages':
+                icon = '⚠️';
+                response = `${icon} **Points à considérer** :\n\n`;
+                break;
+            case 'examples':
+                icon = '📝';
+                response = `${icon} **Exemples** :\n\n`;
+                break;
+            case 'steps':
+                icon = '🔢';
+                response = `${icon} **Étapes** :\n\n`;
+                break;
+            case 'types':
+                icon = '📋';
+                response = `${icon} **Types** :\n\n`;
+                break;
+            default:
+                response = `${icon} **Informations trouvées** :\n\n`;
+        }
+
+        if (snippets.length > 0) {
+            snippets.forEach((snippet, index) => {
+                if (['how', 'steps'].includes(questionType)) {
+                    response += `${index + 1}. ${snippet}\n\n`;
+                } else if (['advantages', 'disadvantages', 'examples', 'types'].includes(questionType)) {
+                    response += `• ${snippet}\n\n`;
+                } else {
+                    response += `${snippet}\n\n`;
+                }
+            });
         }
         
-        const topResult = searchResults[0];
-        const memory = topResult.memory;
-        
-        // Calculer la pertinence (0-100%)
-        const relevance = Math.min(Math.round(topResult.score * 100), 100);
-        
-        const relevantExcerpt = this.extractRelevantExcerpt(memory.fullText || memory.excerpt || '', query);
-        
-        let response = `📖 **${memory.title || 'Document'}** `;
-        
-        if (relevance < 30) {
-            response += `(pertinence faible: ${relevance}%)\n\n`;
-        } else {
-            response += `\n\n`;
-        }
-        
-        if (relevantExcerpt) {
-            response += `${relevantExcerpt}\n\n`;
-        }
-        
-        if (memory.domain && memory.domain !== "Import local") {
-            response += `_Source: ${memory.domain}_\n\n`;
-        }
-        
-        if (searchResults.length > 1) {
-            response += `📚 ${searchResults.length - 1} autre(s) document(s) connexe(s).`;
+        if (sourceTitle) {
+            response += `_Source: ${sourceTitle}_`;
         }
         
         return response;
-    }
-
-    extractRelevantExcerpt(text, query) {
-        if (!text || text.length === 0) return 'Aucun contenu disponible.';
-        
-        if (text.length < 300) {
-            return text;
-        }
-        
-        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
-        const queryWords = this.preprocessText(query).split(' ').filter(w => w.length > 2);
-        
-        if (sentences.length === 0) {
-            return text.substring(0, 250) + '...';
-        }
-        
-        let bestSentence = '';
-        let bestScore = 0;
-        
-        sentences.forEach(sentence => {
-            const sentenceLower = sentence.toLowerCase();
-            let score = 0;
-            
-            queryWords.forEach(word => {
-                if (sentenceLower.includes(word)) {
-                    score += 2;
-                }
-            });
-            
-            if (score > bestScore) {
-                bestScore = score;
-                bestSentence = sentence.trim();
-            }
-        });
-        
-        if (bestSentence.length < 50) {
-            return text.substring(0, 250) + '...';
-        }
-        
-        if (bestSentence.length > 300) {
-            bestSentence = bestSentence.substring(0, 297) + '...';
-        }
-        
-        return bestSentence;
     }
 
     async processQuestion(query, storageManager) {
@@ -257,42 +158,52 @@ class AIProcessor {
             
             if (memories.length === 0) {
                 return {
-                    answer: "📭 Aucun document disponible dans ma mémoire.\n\nSouhaitez-vous que je recherche cette information sur internet ?",
+                    answer: "📭 Aucun document disponible dans ma mémoire.",
                     knowsAnswer: false,
                     searchQuery: query
                 };
             }
             
-            const searchResults = await this.semanticSearch(query, memories);
+            // Analyser la question
+            const questionType = this.analyzeQuestionType(query);
+            const keywords = this.extractKeywords(query);
             
-            if (searchResults.length === 0) {
+            // Rechercher dans les documents
+            let bestResponse = null;
+            let bestRelevance = 0;
+            
+            for (const memory of memories) {
+                const text = memory.fullText || memory.excerpt || '';
+                const snippets = this.findRelevantTextSnippets(text, keywords);
+                
+                if (snippets.length > 0) {
+                    const relevance = snippets.length * 2 + keywords.length;
+                    
+                    if (relevance > bestRelevance) {
+                        bestRelevance = relevance;
+                        bestResponse = this.formatResponse(questionType, snippets, memory.title);
+                    }
+                }
+            }
+            
+            if (bestResponse && bestRelevance >= 3) {
                 return {
-                    answer: `🤔 Je n'ai pas d'information sur "${query}" dans mes documents.\n\nVoulez-vous que je recherche cela sur internet ?`,
+                    answer: bestResponse,
+                    knowsAnswer: true,
+                    searchQuery: null
+                };
+            } else {
+                return {
+                    answer: `🤔 Je n'ai pas trouvé d'information spécifique sur "${query}" dans mes documents.\n\nJ'ai analysé ${memories.length} document(s) mais les informations ne semblent pas assez précises.`,
                     knowsAnswer: false,
                     searchQuery: query
                 };
             }
-            
-            // Vérifier si la réponse est pertinente (score minimum)
-            const knowsAnswer = searchResults[0].score >= 0.3;
-            
-            const response = this.generateResponse(query, searchResults);
-            
-            // Ajouter la suggestion de recherche si la réponse n'est pas pertinente
-            if (!knowsAnswer) {
-                response += `\n\n🤔 Cette information semble incomplète. Souhaitez-vous une recherche plus approfondie sur internet ?`;
-            }
-            
-            return {
-                answer: response,
-                knowsAnswer: knowsAnswer,
-                searchQuery: !knowsAnswer ? query : null
-            };
             
         } catch (error) {
             console.error('Erreur traitement question:', error);
             return {
-                answer: "⚠️ Désolé, une erreur est survenue.",
+                answer: "⚠️ Désolé, une erreur est survenue lors de l'analyse.",
                 knowsAnswer: false,
                 searchQuery: null
             };
@@ -300,5 +211,4 @@ class AIProcessor {
     }
 }
 
-// Exporter l'instance
-const aiProcessor = new AIProcessor();
+const aiProcessor = new EnhancedAIProcessor();
