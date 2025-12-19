@@ -1,8 +1,8 @@
-// Active AI Memory - Storage Utilities
+// utils/storage.js - Version simplifiée
+
 class StorageManager {
     constructor() {
         this.storageKey = 'memories';
-        this.settingsKey = 'settings';
     }
 
     async getAllMemories() {
@@ -21,18 +21,27 @@ class StorageManager {
     async addMemory(memory) {
         const memories = await this.getAllMemories();
         
-        const isDuplicate = this.checkDuplicate(memories, memory);
-        if (isDuplicate) return { success: false, message: 'Déjà existant' };
+        // Vérifier les doublons récents
+        const oneHourAgo = Date.now() - 60 * 60 * 1000;
+        const isDuplicate = memories.some(m => 
+            m.url === memory.url && 
+            new Date(m.timestamp).getTime() > oneHourAgo
+        );
+        
+        if (isDuplicate) {
+            console.log('Document déjà importé récemment');
+            return { success: false, message: 'Document déjà existant' };
+        }
 
         memories.unshift(memory);
-
-        const settings = await this.getSettings();
-        if (memories.length > settings.maxMemories) {
-            memories.length = settings.maxMemories;
+        
+        // Limiter à 100 documents maximum
+        if (memories.length > 100) {
+            memories.length = 100;
         }
 
         await this.saveMemories(memories);
-        return { success: true };
+        return { success: true, message: 'Document ajouté' };
     }
 
     async deleteMemory(id) {
@@ -47,13 +56,13 @@ class StorageManager {
         return { success: true };
     }
 
-    // RECHERCHE AMÉLIORÉE DANS LE TEXTE CACHÉ
     async searchMemories(query) {
         const memories = await this.getAllMemories();
         const lowerQuery = query.toLowerCase();
-
+        
         return memories.filter(m => 
             (m.title && m.title.toLowerCase().includes(lowerQuery)) ||
+            (m.excerpt && m.excerpt.toLowerCase().includes(lowerQuery)) ||
             (m.fullText && m.fullText.toLowerCase().includes(lowerQuery)) ||
             (m.domain && m.domain.toLowerCase().includes(lowerQuery))
         );
@@ -73,23 +82,7 @@ class StorageManager {
             });
         });
     }
-
-    async getSettings() {
-        return new Promise((resolve) => {
-            chrome.storage.local.get([this.settingsKey], (result) => {
-                const defaultSettings = { autoCapture: true, maxMemories: 500 };
-                resolve(result[this.settingsKey] || defaultSettings);
-            });
-        });
-    }
-
-    checkDuplicate(memories, newMemory) {
-        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-        return memories.some(m => 
-            m.url === newMemory.url && 
-            new Date(m.timestamp).getTime() > fiveMinutesAgo
-        );
-    }
 }
 
+// Créer l'instance globale
 const storageManager = new StorageManager();
