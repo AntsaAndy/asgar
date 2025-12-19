@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResearchSum - Extension pour Étudiants</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            overflow-x: hidden;
+            /* Remplacé le gradient linéaire par un fond blanc avec des blobs bleus animés */
+            background: #F5F7FA;
+            min-height: 20vh;
+            color: #1A1A2E;
+            position: relative;
+        }
+
+        /* Ajout des blobs de couleur bleue en arrière-plan */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.4;
+            animation: float 20s ease-in-out infinite;
+            z-index: 0;
+        }
+
+    
+        
+      
+    
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            33% {
+                transform: translate(30px, -50px) scale(1.1);
+            }
+            66% {
+                transform: translate(-20px, 20px) scale(0.9);
+            }
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 4rem;
+            position: relative;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            /* Ajusté la couleur du logo pour mieux contraster avec le nouveau fond */
+            color: #2D3748;
+        }
+
+        .logo-icon {
+            width: 110px;
+            height: 80px;
+            margin-top: -10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            /* Couleur des liens ajustée */
+            color: #2D3748;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.7;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-login {
+            background: none;
+            border: none;
+            color: #2D3748;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            transition: opacity 0.3s;
+        }
+
+        .btn-login:hover {
+            opacity: 0.7;
+        }
+        .style {
+            color: #0077b6;
+        }
+        .btn-join {
+            /* Bouton avec couleur bleue thématique */
+            background: #0077b6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn-join:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(74, 144, 226, 0.3);
+        }
+
+        /* Hero Section */
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 8rem 2rem;
+            min-height: 70vh;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-content {
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .hero-content h1 {
+            font-size: 3.1rem;
+            line-height: 1.1;
+            margin-bottom: 2rem;
+            /* Couleur du titre ajustée pour le nouveau fond */
+            color: #2D3748;
+        }
+
+        .btn-start {
+            /* Bouton principal avec couleur bleue thématique */
+            background: #0077b6;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4);
+        }
+
+        /* Circular Animation */
+        .hero-visual {
+            flex: 1;
+            position: relative;
+            height: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+        }
+
+        .orbit-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+
+        .center-stat {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .center-stat h2 {
+            font-size: 4rem;
+            /* Couleur du texte central ajustée */
+            color: #4A90E2;
+            margin-bottom: 0.5rem;
+        }
+
+        .center-stat p {
+            font-size: 1.2rem;
+            /* Couleur du sous-texte ajustée */
+            color: #2D3748;
+        }
+
+        .orbit {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* Bordure des orbites avec couleur bleue */
+            border: 2px solid rgba(74, 144, 226, 0.2);
+            border-radius: 50%;
+        }
+
+        .orbit-1 {
+            width: 350px;
+            height: 350px;
+            animation: rotate 20s linear infinite;
+        }
+
+        .orbit-2 {
+            width: 500px;
+            height: 500px;
+            animation: rotate 30s linear infinite reverse;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        .icon-bubble {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Couleurs des icônes ajustées avec palette bleue étudiante */
+        /* Position des icônes sur orbite 1 */
+        .icon-1 { top: -30px; left: 50%; transform: translateX(-50%); background: #6B8DD6; }
+        .icon-2 { bottom: -30px; left: 50%; transform: translateX(-50%); background: #5B9FED; }
+        .icon-3 { left: -30px; top: 50%; transform: translateY(-50%); background: #8AAEE0; }
+        .icon-4 { right: -30px; top: 50%; transform: translateY(-50%); background: #4A90E2; }
+
+        /* Position des icônes sur orbite 2 */
+        .icon-5 { top: 20px; left: 20px; background: #667EEA; }
+        .icon-6 { top: 20px; right: 20px; background: #7B68EE; }
+        .icon-7 { bottom: 20px; left: 20px; background: #5A8CD6; }
+        .icon-8 { bottom: 20px; right: 20px; background: #7C9FE6; }
+
+
+        @media (max-width: 1024px) {
+            nav {
+                padding: 1.5rem 2rem;
+            }
+
+            .hero {
+                flex-direction: column;
+                padding: 2rem;
+                text-align: center;
+            }
+
+            .hero-content {
+                max-width: 100%;
+            }
+
+            .hero-content h1 {
+                font-size: 2rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero-visual {
+                height: 400px;
+                margin-top: 3rem;
+            }
+
+            .orbit-container {
+                width: 350px;
+                height: 350px;
+            }
+
+            .orbit-1 {
+                width: 150px;
+                height: 150px;
+            }
+
+            .orbit-2 {
+                width: 250px;
+                height: 250px;
+            }
+
+            .center-stat h2 {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Ajout des blobs animés en arrière-plan -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+    <div class="blob blob-5"></div>
+
+    <nav>
+        <div class="logo">
+            <img src="logo_final-removebg-preview.png" alt="logo" class="logo-icon">
+            <span></span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#fonctionnalites">Fonctionnalités</a></li>
+            <li><a href="#comment-ca-marche">Comment ça marche</a></li>
+            <li><a href="#tarifs">Tarifs</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+        <div class="nav-buttons">
+            <button class="btn-join">Installer</button>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Résumez Vos Recherches en Un Clic –<span class="style">L'Extension </span> Qui Fait Gagner du Temps aux Étudiants!</h1>
+            <button class="btn-start">Installer Maintenant →</button>
+        </div>
+
+        <div class="hero-visual">
+            <div class="orbit-container">
+                <div class="center-stat">
+                    <h2>10k+</h2>
+                    <p>Étudiants</p>
+                </div>
+
+                <div class="orbit orbit-1">
+                    <div class="icon-bubble icon-1">📚</div>
+                    <div class="icon-bubble icon-2">✍️</div>
+                    <div class="icon-bubble icon-3">💡</div>
+                    <div class="icon-bubble icon-4">🎓</div>
+                </div>
+
+                <div class="orbit orbit-2">
+                    <div class="icon-bubble icon-5">📝</div>
+                    <div class="icon-bubble icon-6">🔍</div>
+                    <div class="icon-bubble icon-7">⚡</div>
+                    <div class="icon-bubble icon-8">🚀</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>
