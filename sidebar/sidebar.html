@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI Memory</title>
+    <link rel="stylesheet" href="sidebar.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="popup-header">
+        <h1>🧠 SiTeSEVER</h1>
+        <div class="top-actions">
+            <button id="add-file-btn" title="Ajouter un fichier local">📁</button>
+            <button id="download-all-btn" title="Tout télécharger">📥</button>
+            <button id="clear-all-btn" title="Tout supprimer">🗑️</button>
+            <button id="menu-toggle" title="Historique">⋮</button>
+        </div>
+    </div>
+
+    <div id="history-panel" class="memories-section hidden">
+        <div id="memories-list" class="memories-container">
+            </div>
+    </div>
+
+    <div class="chat-section">
+        <div class="chat-header">
+            <div class="status-dot"></div>
+            <span>Assistant IA local</span>
+        </div>
+        <div id="chat-messages" class="chat-messages">
+            <div class="msg bot">Bonjour ! Je suis prêt à analyser vos souvenirs.</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Posez une question...">
+            <button id="send-chat">🚀</button>
+        </div>
+    </div>
+    
+    <script src="../utils/storage.js"></script>
+    <script src="sidebar.js"></script>
+</body>
+</html>

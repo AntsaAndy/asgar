@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Active AI Memory",
+  "version": "1.0",
+  "permissions": ["sidePanel", "storage", "tabs", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["utils/storage.js", "content.js"]
+    }
+  ],
+  "action": {
+    "default_title": "Ouvrir la mémoire"
+  },
+  "side_panel": {
+    "default_path": "sidebar/sidebar.html"
+  }
+}
